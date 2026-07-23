@@ -1,28 +1,91 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
   <title>RDP Controller</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #121212;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0;
+      padding: 20px;
+    }
+    #screen {
+      border: 2px solid #333;
+      border-radius: 6px;
+      cursor: crosshair;
+      background: #000;
+      max-width: 100%;
+      height: auto;
+    }
+    .status {
+      margin-top: 10px;
+      font-size: 0.9rem;
+      color: #888;
+    }
+  </style>
 </head>
 <body>
-  <h1>Controller</h1>
+  <h1>RDP Controller</h1>
   <canvas id="screen" width="800" height="600"></canvas>
-  <script>
-    const ws = new WebSocket("ws://yourserver.com:8000");
-    ws.onopen = () => ws.send("controller");
+  <div class="status" id="status">Connecting...</div>
 
-    ws.onmessage = (event) => {
-      const img = new Image();
-      img.src = "data:image/jpeg;base64," + btoa(
-        new Uint8Array(event.data)
-          .reduce((data, byte) => data + String.fromCharCode(byte), '')
-      );
-      const ctx = document.getElementById("screen").getContext("2d");
-      img.onload = () => ctx.drawImage(img, 0, 0);
+  <script>
+    const canvas = document.getElementById("screen");
+    const ctx = canvas.getContext("2d");
+    const statusText = document.getElementById("status");
+
+    // Connect to WebSocket server (automatically matches host name)
+    const wsHost = window.location.hostname || "localhost";
+    const ws = new WebSocket(`ws://${wsHost}:8000`);
+
+    // Receive binary data as ArrayBuffer instead of Blob
+    ws.binaryType = "arraybuffer";
+
+    ws.onopen = () => {
+      ws.send("controller");
+      statusText.textContent = "Connected to relay server";
     };
 
-    // Example: send click command
-    document.getElementById("screen").addEventListener("click", e => {
-      ws.send(`CLICK:${e.offsetX},${e.offsetY}`);
+    ws.onclose = () => {
+      statusText.textContent = "Disconnected from server";
+    };
+
+    ws.onerror = (err) => {
+      statusText.textContent = "WebSocket Error";
+      console.error(err);
+    };
+
+    ws.onmessage = (event) => {
+      // 1. Convert ArrayBuffer to a Blob
+      const blob = new Blob([event.data], { type: "image/jpeg" });
+      
+      // 2. Create a fast memory URL for rendering
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        URL.revokeObjectURL(url); // Clean up memory
+      };
+
+      img.src = url;
+    };
+
+    // Send click coordinates normalized to canvas size
+    canvas.addEventListener("click", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      // Calculate position relative to internal canvas resolution (800x600)
+      const x = Math.round((e.clientX - rect.left) * (canvas.width / rect.width));
+      const y = Math.round((e.clientY - rect.top) * (canvas.height / rect.height));
+
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(`CLICK:${x},${y}`);
+      }
     });
   </script>
 </body>
