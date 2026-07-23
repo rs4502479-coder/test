@@ -1,11 +1,11 @@
-<!-- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>RDP Controller</title>
+  <title>Vercel RDP Controller</title>
   <style>
     body {
-      font-family: system-ui, -apple-system, sans-serif;
+      font-family: system-ui, sans-serif;
       background: #121212;
       color: #fff;
       display: flex;
@@ -30,56 +30,50 @@
   </style>
 </head>
 <body>
-  <h1>RDP Controller</h1>
+  <h1>Remote Desktop</h1>
   <canvas id="screen" width="800" height="600"></canvas>
-  <div class="status" id="status">Connecting...</div>
+  <div class="status" id="status">Connecting to Vercel...</div>
 
   <script>
     const canvas = document.getElementById("screen");
     const ctx = canvas.getContext("2d");
     const statusText = document.getElementById("status");
 
-    // Connect to WebSocket server (automatically matches host name)
-    const wsHost = window.location.hostname || "localhost";
-    const ws = new WebSocket(`ws://${wsHost}:8000`);
+    // Automatically resolve Secure WebSockets (wss://) on Vercel deployment
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const ws = new WebSocket(wsUrl);
 
-    // Receive binary data as ArrayBuffer instead of Blob
     ws.binaryType = "arraybuffer";
 
     ws.onopen = () => {
       ws.send("controller");
-      statusText.textContent = "Connected to relay server";
+      statusText.textContent = "Connected to Vercel Relay (Waiting for Host...)";
     };
 
     ws.onclose = () => {
-      statusText.textContent = "Disconnected from server";
-    };
-
-    ws.onerror = (err) => {
-      statusText.textContent = "WebSocket Error";
-      console.error(err);
+      statusText.textContent = "Disconnected from Vercel";
     };
 
     ws.onmessage = (event) => {
-      // 1. Convert ArrayBuffer to a Blob
+      if (typeof event.data === "string") return;
+
       const blob = new Blob([event.data], { type: "image/jpeg" });
-      
-      // 2. Create a fast memory URL for rendering
       const url = URL.createObjectURL(blob);
       const img = new Image();
 
       img.onload = () => {
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        URL.revokeObjectURL(url); // Clean up memory
+        URL.revokeObjectURL(url);
+        statusText.textContent = "Receiving desktop stream...";
       };
 
       img.src = url;
     };
 
-    // Send click coordinates normalized to canvas size
+    // Normalized coordinate calculation on canvas click
     canvas.addEventListener("click", (e) => {
       const rect = canvas.getBoundingClientRect();
-      // Calculate position relative to internal canvas resolution (800x600)
       const x = Math.round((e.clientX - rect.left) * (canvas.width / rect.width));
       const y = Math.round((e.clientY - rect.top) * (canvas.height / rect.height));
 
@@ -89,4 +83,4 @@
     });
   </script>
 </body>
-</html> -->
+</html>
