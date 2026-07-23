@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Vercel RDP Controller</title>
+  <title>RDP Web Controller</title>
   <style>
     body {
       font-family: system-ui, sans-serif;
@@ -30,29 +30,29 @@
   </style>
 </head>
 <body>
-  <h1>Remote Desktop</h1>
+  <h1>Remote Desktop Controller</h1>
   <canvas id="screen" width="800" height="600"></canvas>
-  <div class="status" id="status">Connecting to Vercel...</div>
+  <div class="status" id="status">Connecting...</div>
 
   <script>
     const canvas = document.getElementById("screen");
     const ctx = canvas.getContext("2d");
     const statusText = document.getElementById("status");
 
-    // Automatically resolve Secure WebSockets (wss://) on Vercel deployment
+    // Render पर HTTPS के साथ Secure WebSockets (wss://) स्वचालित रूप से सेट हो जाएगा
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const wsUrl = `${protocol}//${window.location.host}`;
     const ws = new WebSocket(wsUrl);
 
     ws.binaryType = "arraybuffer";
 
     ws.onopen = () => {
       ws.send("controller");
-      statusText.textContent = "Connected to Vercel Relay (Waiting for Host...)";
+      statusText.textContent = "Connected to Server (Waiting for Host...)";
     };
 
     ws.onclose = () => {
-      statusText.textContent = "Disconnected from Vercel";
+      statusText.textContent = "Disconnected from Server";
     };
 
     ws.onmessage = (event) => {
@@ -65,13 +65,13 @@
       img.onload = () => {
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         URL.revokeObjectURL(url);
-        statusText.textContent = "Receiving desktop stream...";
+        statusText.textContent = "Receiving stream...";
       };
 
       img.src = url;
     };
 
-    // Normalized coordinate calculation on canvas click
+    // Click event handler
     canvas.addEventListener("click", (e) => {
       const rect = canvas.getBoundingClientRect();
       const x = Math.round((e.clientX - rect.left) * (canvas.width / rect.width));
